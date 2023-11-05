@@ -5,6 +5,7 @@ import oracledb
 def linha():
     print('------------------------------')
 
+
 # Função para criar a tabela de jogadores (executar apenas uma vez)
 
 def criar_tabela_jogadores():
@@ -16,7 +17,6 @@ def criar_tabela_jogadores():
     tabela_existe = cursor.fetchone()
 
     if not tabela_existe or tabela_existe[0] == 0:
-        # A tabela não existe, então criamos
         cursor.execute('''
         CREATE TABLE jogadores (
             id NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -33,6 +33,7 @@ def criar_tabela_jogadores():
     cursor.close()
     conn.close()
 
+
 # Função para registrar um novo jogador
 
 def registrar_jogador(nome, senha):
@@ -40,30 +41,31 @@ def registrar_jogador(nome, senha):
     cursor = conn.cursor()
 
     cursor.execute('INSERT INTO jogadores (nome, senha, saldo) VALUES (:1, :2, :3)', (nome, senha, 100))
-    
+
     cursor.close()
     conn.commit()
     conn.close()
 
+
 # Função para fazer login
 
 def fazer_login():
-        nome = input("Nome de usuário: ")
-        senha = input("Senha: ")
+    nome = input("Nome de usuário: ")
+    senha = input("Senha: ")
 
-        conn = oracledb.connect(user="RM99585", password="210305", dsn="oracle.fiap.com.br/orcl")
-        cursor = conn.cursor()
+    conn = oracledb.connect(user="RM99585", password="210305", dsn="oracle.fiap.com.br/orcl")
+    cursor = conn.cursor()
 
-        cursor.execute('SELECT nome, saldo FROM jogadores WHERE nome = :1 AND senha = :2', (nome, senha))
-        resultado = cursor.fetchone()
+    cursor.execute('SELECT nome, saldo FROM jogadores WHERE nome = :1 AND senha = :2', (nome, senha))
+    resultado = cursor.fetchone()
 
-        conn.close()
+    conn.close()
 
-        if resultado:
-            return resultado[0], resultado[1]
-        else:
-            print("Nome de usuário ou senha incorretos.")
-            return None, None
+    if resultado:
+        return resultado[0], resultado[1]
+    else:
+        print("Nome de usuário ou senha incorretos.")
+        return None, None
 
 
 # Função para atualizar o saldo do jogador
@@ -72,9 +74,10 @@ def atualizar_saldo(nome, novo_saldo):
     cursor = conn.cursor()
 
     cursor.execute('UPDATE jogadores SET saldo = :novo_saldo WHERE nome = :nome', novo_saldo=novo_saldo, nome=nome)
-    
+
     conn.commit()
     conn.close()
+
 
 # Resto do código do jogo
 def criar_baralho():
@@ -93,13 +96,17 @@ def calcular_valor_mao(mao):
     as_contagem = 0
 
     for carta in mao:
-        if carta["value"] in ["KING", "QUEEN", "JACK"]:
+        valor_carta = carta["value"]
+        if valor_carta in ["KING", "QUEEN", "JACK"]:
             valor += 10
-        elif carta["value"] == "ACE":
+        elif valor_carta == "ACE":
             valor += 11
             as_contagem += 1
         else:
-            valor += int(carta["value"])
+            try:
+                valor += int(valor_carta)
+            except ValueError:
+                valor += 0
 
     while as_contagem > 0 and valor > 21:
         valor -= 10
@@ -113,17 +120,17 @@ def determinar_vencedor(mao_jogador, mao_dealer):
     valor_dealer = calcular_valor_mao(mao_dealer)
 
     if valor_jogador > 21:
-        return "Dealer"  # Jogador estourou, o dealer vence
+        return "Maquina"  # Jogador estourou, a maquina vence
     elif valor_dealer > 21:
-        return "Jogador"  # Dealer estourou, o jogador vence
+        return "Jogador"  # Maquina estourou, o jogador vence
     elif valor_jogador > valor_dealer:
         return "Jogador"  # Jogador tem maior pontuação
     elif valor_dealer > valor_jogador:
-        return "Dealer"  # Dealer tem maior pontuação
+        return "Maquina"  # Maquina tem maior pontuação
     else:
         return "Empate"  # Empate
 
-def fazer_aposta(saldo ):
+def fazer_aposta(saldo):
     while True:
         try:
             aposta = int(input(f'Seu saldo atual é {saldo}. Quanto você deseja apostar? '))
@@ -159,14 +166,14 @@ def jogar_rodada(nome_jogador, saldo_jogador):
 
         mostrar_mao(cartas_do_jogador, "Jogador")
         linha()
-        mostrar_mao(cartas_do_dealer, "Dealer")
+        mostrar_mao(cartas_do_dealer, "Maquina")
         linha()
         mostrar_valor(cartas_do_jogador, "Jogador")
         linha()
         for _ in range(10):  # Defina um limite máximo de 10 cartas (você pode ajustar isso)
-            escolha = input("Deseja pedir mais cartas (P) ou parar (S)? ").upper()
+            escolha = input("Deseja (pedir) mais cartas ou (parar)? ").upper()
 
-            if escolha == "P":
+            if escolha == "PEDIR":
                 nova_carta = sortear_cartas(deck_id, 1)[0]
                 cartas_do_jogador.append(nova_carta)
                 mostrar_mao([nova_carta], "Jogador")
@@ -174,9 +181,9 @@ def jogar_rodada(nome_jogador, saldo_jogador):
 
                 if calcular_valor_mao(cartas_do_jogador) > 21:
                     print("Jogador estourou com mais de 21 pontos!")
-                    resultado = "Dealer"
+                    resultado = "Maquina"
                     break
-            elif escolha == "S":
+            elif escolha == "PARAR":
                 while calcular_valor_mao(cartas_do_dealer) < 16:
                     nova_carta = sortear_cartas(deck_id, 1)[0]
                     cartas_do_dealer.append(nova_carta)
@@ -184,9 +191,9 @@ def jogar_rodada(nome_jogador, saldo_jogador):
                 resultado = determinar_vencedor(cartas_do_jogador, cartas_do_dealer)
                 break
             else:
-                print("Escolha inválida. Digite P para pedir mais cartas ou S para parar.")
+                print("Escolha inválida (digite: pedir/parar).")
 
-        mostrar_mao(cartas_do_dealer, "Dealer")
+        mostrar_mao(cartas_do_dealer, "Maquina")
 
         if resultado == "Jogador":
             saldo_jogador += 2 * aposta
@@ -195,10 +202,9 @@ def jogar_rodada(nome_jogador, saldo_jogador):
             saldo_jogador += aposta
             print(f"Empate! Saldo atual: {saldo_jogador}")
         else:
-            print(f"Dealer vence! Saldo atual: {saldo_jogador}")
+            print(f"Maquina vence! Saldo atual: {saldo_jogador}")
 
         atualizar_saldo(nome_jogador, saldo_jogador)
-
 
 def jogar_blackjack():
     nome_jogador = None
@@ -240,7 +246,6 @@ def obter_podio():
 
     return top_jogadores
 
-
 def exibir_podio():
     top_jogadores = obter_podio()
 
@@ -250,7 +255,6 @@ def exibir_podio():
             print(f"{i}. {nome}: Saldo - {saldo}")
     else:
         print("Nenhum jogador encontrado no pódio.")
-
 
 if __name__ == "__main__":
     criar_tabela_jogadores()
