@@ -2,7 +2,7 @@ import requests
 import oracledb
 
 
-def linha():
+def separador():
     print('------------------------------')
 
 
@@ -65,6 +65,7 @@ def fazer_login():
         return resultado[0], resultado[1]
     else:
         print("Nome de usuário ou senha incorretos.")
+        separador()
         return None, None
 
 
@@ -96,17 +97,13 @@ def calcular_valor_mao(mao):
     as_contagem = 0
 
     for carta in mao:
-        valor_carta = carta["value"]
-        if valor_carta in ["KING", "QUEEN", "JACK"]:
+        if carta["value"] in ["KING", "QUEEN", "JACK"]:
             valor += 10
-        elif valor_carta == "ACE":
+        elif carta["value"] == "ACE":
             valor += 11
             as_contagem += 1
         else:
-            try:
-                valor += int(valor_carta)
-            except ValueError:
-                valor += 0
+            valor += int(carta["value"])
 
     while as_contagem > 0 and valor > 21:
         valor -= 10
@@ -130,6 +127,7 @@ def determinar_vencedor(mao_jogador, mao_dealer):
     else:
         return "Empate"  # Empate
 
+
 def fazer_aposta(saldo):
     while True:
         try:
@@ -144,17 +142,32 @@ def fazer_aposta(saldo):
 def mostrar_mao(mao, jogador):
     print(f"Cartas do {jogador}:")
     for carta in mao:
-        print(f'{carta["value"]} de {carta["suit"]}')
+        valor = carta["value"]
+        if valor in ["KING", "QUEEN", "JACK"]:
+            valor = "10"
+        elif valor == "ACE":
+            if sum([11 if c["value"] == "ACE" else int(c["value"]) if c["value"].isnumeric() else 10 for c in mao]) <= 21:
+                valor = "11"
+            else:
+                valor = "1"
+        print(f'{valor} ({carta["value"]}) de {carta["suit"]}')
+    separador()
+
 
 def mostrar_valor(mao, jogador):
     valor = calcular_valor_mao(mao)
     print(f"Valor da mão do {jogador}: {valor}")
+    separador()
 
 def jogar_rodada(nome_jogador, saldo_jogador):
     while saldo_jogador > 0:
         continuar_jogando = input("Iniciar rodada (S/N): ")
         if continuar_jogando.upper() != 'S':
+            separador()
+            print("Já vai? Volte mais vezes!")
+            separador()
             exibir_podio()
+            separador()
             exit()
         aposta = fazer_aposta(saldo_jogador)
         saldo_jogador -= aposta
@@ -165,15 +178,15 @@ def jogar_rodada(nome_jogador, saldo_jogador):
         cartas_do_dealer = sortear_cartas(deck_id, 2)
 
         mostrar_mao(cartas_do_jogador, "Jogador")
-        linha()
+        separador()
         mostrar_mao(cartas_do_dealer, "Maquina")
-        linha()
+        separador()
         mostrar_valor(cartas_do_jogador, "Jogador")
-        linha()
-        for _ in range(10):  # Defina um limite máximo de 10 cartas (você pode ajustar isso)
-            escolha = input("Deseja (pedir) mais cartas ou (parar)? ").upper()
+        separador()
+        while True: 
+            escolha = input("Deseja (pedir) mais cartas ou (parar)? ").lower()
 
-            if escolha == "PEDIR":
+            if escolha == "pedir":
                 nova_carta = sortear_cartas(deck_id, 1)[0]
                 cartas_do_jogador.append(nova_carta)
                 mostrar_mao([nova_carta], "Jogador")
@@ -183,7 +196,7 @@ def jogar_rodada(nome_jogador, saldo_jogador):
                     print("Jogador estourou com mais de 21 pontos!")
                     resultado = "Maquina"
                     break
-            elif escolha == "PARAR":
+            elif escolha == "parar":
                 while calcular_valor_mao(cartas_do_dealer) < 16:
                     nova_carta = sortear_cartas(deck_id, 1)[0]
                     cartas_do_dealer.append(nova_carta)
@@ -191,7 +204,7 @@ def jogar_rodada(nome_jogador, saldo_jogador):
                 resultado = determinar_vencedor(cartas_do_jogador, cartas_do_dealer)
                 break
             else:
-                print("Escolha inválida (digite: pedir/parar).")
+                print("Escolha inválida. Digite 'pedir' para pedir mais cartas ou 'parar' para parar.")
 
         mostrar_mao(cartas_do_dealer, "Maquina")
 
@@ -203,15 +216,24 @@ def jogar_rodada(nome_jogador, saldo_jogador):
             print(f"Empate! Saldo atual: {saldo_jogador}")
         else:
             print(f"Maquina vence! Saldo atual: {saldo_jogador}")
+        separador()
 
+        if saldo_jogador == 0:
+            print("Você ficou sem fichas. O jogo está encerrado.")
+            separador()
+            exibir_podio()
+            separador
+            exit()
+        
         atualizar_saldo(nome_jogador, saldo_jogador)
+
 
 def jogar_blackjack():
     nome_jogador = None
     saldo_jogador = None
 
     while True:
-        opcao = input("Escolha uma opção:\n1 - Fazer login\n2 - Registrar novo jogador\n3 - Sair\nOpção: ")
+        opcao = input("Escolha uma opção:\n1 - Login\n2 - Registrar\n3 - Ranking de Jogadores\n4 - Sair\nOpção: ")
 
         if opcao == "1":
             nome_jogador, saldo_jogador = fazer_login()
@@ -223,14 +245,33 @@ def jogar_blackjack():
             senha = input("Senha: ")
             registrar_jogador(nome, senha)
             print("Jogador registrado com sucesso!")
+
         elif opcao == "3":
-            exit()
+            separador()
+            exibir_podio()
+            separador()
+
+        elif opcao == "4":
+         print("Já vai? Volte mais vezes!")
+         exit()
         else:
             print("Opção inválida. Escolha novamente.")
 
-    while saldo_jogador > 0:
+    while True:  # Loop para permitir que o jogador continue jogando
         jogar_rodada(nome_jogador, saldo_jogador)
-        linha()
+        ()
+
+        # Verifique se o jogador ainda tem saldo
+        if saldo_jogador <= 0:
+            recarregar = input("Você faliu! Deseja recarregar fichas (R) ou sair (S)? ").upper()
+            if recarregar == 'R':
+                saldo_jogador = 100 # Recarregue com 200 fichas (ou outro valor desejado)
+            elif recarregar == 'S':
+                print("Já vai? Volte mais vezes!")
+                exit()
+            else:
+                print("Comando invalido. Escolha R para recarregar fichas ou S para sair.")
+
 
 def obter_podio():
     conn = oracledb.connect(user="RM99585", password="210305", dsn="oracle.fiap.com.br/orcl")
