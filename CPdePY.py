@@ -3,13 +3,30 @@ import oracledb
 
 
 def separador():
-    print('------------------------------')
+    print('-' * 30)
+
+def obter_conexao():
+    try:
+        connection = oracledb.connect(user="RM99585", password="210305", dsn="oracle.fiap.com.br/orcl")
+        return connection
+    except Exception as e:
+        print(f"Erro ao obter conexão: {e}")
+        return None
+
+
+def close_connection(conn, cursor):
+    try:
+        if conn:
+            cursor.close()
+            conn.close()
+    except Exception as e:
+        print (f"Erro ao fechar conexão:{e}" )
 
 
 # Função para criar a tabela de jogadores (executar apenas uma vez)
 
 def criar_tabela_jogadores():
-    conn = oracledb.connect(user="RM99585", password="210305", dsn="oracle.fiap.com.br/orcl")
+    conn = obter_conexao()
     cursor = conn.cursor()
 
     # Consulta SQL para verificar se a tabela já existe
@@ -29,15 +46,14 @@ def criar_tabela_jogadores():
         print("Tabela 'jogadores' criada com sucesso.")
     else:
         print("A tabela 'jogadores' já existe.")
-
-    cursor.close()
-    conn.close()
+    
+    close_connection()
 
 
 # Função para registrar um novo jogador
 
 def registrar_jogador(nome, senha):
-    conn = oracledb.connect(user="RM99585", password="210305", dsn="oracle.fiap.com.br/orcl")
+    conn = obter_conexao()
     cursor = conn.cursor()
 
     cursor.execute('INSERT INTO jogadores (nome, senha, saldo) VALUES (:1, :2, :3)', (nome, senha, 100))
@@ -53,7 +69,7 @@ def fazer_login():
     nome = input("Nome de usuário: ")
     senha = input("Senha: ")
 
-    conn = oracledb.connect(user="RM99585", password="210305", dsn="oracle.fiap.com.br/orcl")
+    conn = obter_conexao()
     cursor = conn.cursor()
 
     cursor.execute('SELECT nome, saldo FROM jogadores WHERE nome = :1 AND senha = :2', (nome, senha))
@@ -71,7 +87,7 @@ def fazer_login():
 
 # Função para atualizar o saldo do jogador
 def atualizar_saldo(nome, novo_saldo):
-    conn = oracledb.connect(user="RM99585", password="210305", dsn="oracle.fiap.com.br/orcl")
+    conn = obter_conexao()
     cursor = conn.cursor()
 
     cursor.execute('UPDATE jogadores SET saldo = :novo_saldo WHERE nome = :nome', novo_saldo=novo_saldo, nome=nome)
@@ -120,9 +136,9 @@ def determinar_vencedor(mao_jogador, mao_dealer):
         return "Maquina"  # Jogador estourou, a maquina vence
     elif valor_dealer > 21:
         return "Jogador"  # Maquina estourou, o jogador vence
-    elif valor_jogador > valor_dealer:
+    elif valor_jogador > valor_dealer or valor_jogador == 21:
         return "Jogador"  # Jogador tem maior pontuação
-    elif valor_dealer > valor_jogador:
+    elif valor_dealer > valor_jogador or valor_dealer == 21:
         return "Maquina"  # Maquina tem maior pontuação
     else:
         return "Empate"  # Empate
@@ -184,9 +200,9 @@ def jogar_rodada(nome_jogador, saldo_jogador):
         mostrar_valor(cartas_do_jogador, "Jogador")
         separador()
         while True: 
-            escolha = input("Deseja (pedir) mais cartas ou (parar)? ").lower()
+            escolha = input("Deseja (+) mais cartas ou (-)? ").lower()
 
-            if escolha == "pedir":
+            if escolha == "+":
                 nova_carta = sortear_cartas(deck_id, 1)[0]
                 cartas_do_jogador.append(nova_carta)
                 mostrar_mao([nova_carta], "Jogador")
@@ -196,7 +212,7 @@ def jogar_rodada(nome_jogador, saldo_jogador):
                     print("Jogador estourou com mais de 21 pontos!")
                     resultado = "Maquina"
                     break
-            elif escolha == "parar":
+            elif escolha == "-":
                 while calcular_valor_mao(cartas_do_dealer) < 16:
                     nova_carta = sortear_cartas(deck_id, 1)[0]
                     cartas_do_dealer.append(nova_carta)
@@ -227,31 +243,39 @@ def jogar_rodada(nome_jogador, saldo_jogador):
         
         atualizar_saldo(nome_jogador, saldo_jogador)
 
+def menu():
+    print(''' 
+====================================
+        BEM VINDO AO BLACK JACK
+====================================
+''')
+    opcao = int(input("Escolha uma opção:\n1 - Login\n2 - Registrar\n3 - Ranking de Jogadores\n4 - Sair\nOpção: "))
+    return opcao
 
 def jogar_blackjack():
     nome_jogador = None
     saldo_jogador = None
 
     while True:
-        opcao = input("Escolha uma opção:\n1 - Login\n2 - Registrar\n3 - Ranking de Jogadores\n4 - Sair\nOpção: ")
+        opcao = menu()
 
-        if opcao == "1":
+        if opcao == 1:
             nome_jogador, saldo_jogador = fazer_login()
             if nome_jogador:
                 print(f"Bem-vindo, {nome_jogador}!")
                 break
-        elif opcao == "2":
+        elif opcao == 2:
             nome = input("Nome de usuário: ")
             senha = input("Senha: ")
             registrar_jogador(nome, senha)
             print("Jogador registrado com sucesso!")
 
-        elif opcao == "3":
+        elif opcao == 3:
             separador()
             exibir_podio()
             separador()
 
-        elif opcao == "4":
+        elif opcao == 4:
          print("Já vai? Volte mais vezes!")
          exit()
         else:
